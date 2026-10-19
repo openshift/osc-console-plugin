@@ -27,6 +27,9 @@ spec:
             - containerPort: {{ .Values.plugin.port }}
               protocol: TCP
           imagePullPolicy: {{ .Values.plugin.imagePullPolicy }}
+          env:
+            - name: OCP_VERSION
+              value: {{ .Values.plugin.ocpVersion | quote }}
           {{- if and (.Values.plugin.securityContext.enabled) (.Values.plugin.containerSecurityContext) }}
           securityContext: {{ tpl (toYaml (omit .Values.plugin.containerSecurityContext "enabled")) $ | nindent 12 }}
           {{- end }}
@@ -40,6 +43,8 @@ spec:
               readOnly: true
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
+            - name: nginx-tmp
+              mountPath: /tmp/nginx
       volumes:
         - name: {{ template "openshift-console-plugin.certificateSecret" . }}
           secret:
@@ -49,6 +54,8 @@ spec:
           configMap:
             name: {{ template "openshift-console-plugin.name" . }}
             defaultMode: 420
+        - name: nginx-tmp
+          emptyDir: {}
       restartPolicy: Always
       dnsPolicy: ClusterFirst
       {{- if and (.Values.plugin.securityContext.enabled) (.Values.plugin.podSecurityContext) }}
