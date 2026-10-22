@@ -39,6 +39,7 @@ jest.mock('@openshift-console/dynamic-plugin-sdk', () => ({
   // The feature-gate ConfigMap does not exist yet, so ensureFeatureGate() takes its create path.
   k8sGet: () => Promise.reject(Object.assign(new Error('not found'), { code: 404 })),
   k8sPatch: jest.fn(() => Promise.resolve({})),
+  useAccessReview: (): [boolean, boolean] => [true, false],
 }));
 
 // Keep the router real — the wizard renders inside one — but watch where it sends the user.

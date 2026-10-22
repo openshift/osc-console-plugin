@@ -59,3 +59,5 @@ export const k8sUpdate = (payload: unknown): Promise<unknown> => {
   (window.__k8sUpdateCalls ??= []).push(payload);
   return Promise.resolve(payload);
 };
+
+export const useAccessReview = (): [boolean, boolean] => [true, false];

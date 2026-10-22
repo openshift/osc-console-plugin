@@ -24,6 +24,11 @@ export const DeploymentGVK: K8sGroupVersionKind = {
   version: 'v1',
   kind: 'Deployment',
 };
+export const ReplicaSetGVK: K8sGroupVersionKind = {
+  group: 'apps',
+  version: 'v1',
+  kind: 'ReplicaSet',
+};
 export const DaemonSetGVK: K8sGroupVersionKind = {
   group: 'apps',
   version: 'v1',
@@ -232,4 +237,16 @@ export const MachineSetGVK: K8sGroupVersionKind = {
   group: 'machine.openshift.io',
   version: 'v1beta1',
   kind: 'MachineSet',
+};
+
+export const ClusterServiceVersionGVK: K8sGroupVersionKind = {
+  group: 'operators.coreos.com',
+  version: 'v1alpha1',
+  kind: 'ClusterServiceVersion',
+};
+
+export const SubscriptionGVK: K8sGroupVersionKind = {
+  group: 'operators.coreos.com',
+  version: 'v1alpha1',
+  kind: 'Subscription',
 };

@@ -41,6 +41,7 @@ import { useSandboxWorkloads } from '../k8s/hooks';
 import { DeploymentModel, NamespaceGVK, PodModel } from '../k8s/resources';
 import type { SandboxWorkload } from '../k8s/types';
 import { statusCategory, statusColor } from '../utils/status';
+import { useCanDeleteWorkload } from '../utils/rbac/useOscPermissions';
 import { IsolationLabel } from './IsolationLabel';
 import './sandbox.css';
 
@@ -64,6 +65,7 @@ const RowActions: FC<{ w: SandboxWorkload; onDelete: (w: SandboxWorkload) => voi
   onDelete,
 }) => {
   const { t } = useTranslation('plugin__osc-openshift-console-plugin');
+  const { canDelete } = useCanDeleteWorkload(w.kind, w.namespace);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   return (
@@ -89,6 +91,7 @@ const RowActions: FC<{ w: SandboxWorkload; onDelete: (w: SandboxWorkload) => voi
           {t('View details')}
         </DropdownItem>
         <DropdownItem
+          isDisabled={!canDelete}
           onClick={() => {
             onDelete(w);
           }}
