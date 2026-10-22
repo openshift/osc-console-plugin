@@ -24,6 +24,7 @@ plugin:
     requests:
       cpu: 10m
       memory: 50Mi
+  ocpVersion: ""
   basePath: /
   certificateSecretName: ""
   serviceAccount:
