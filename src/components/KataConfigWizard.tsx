@@ -114,12 +114,19 @@ const KataConfigWizard: FC = () => {
   const effectiveDeployMode: DeployMode =
     isEdit && !deployModeDirty ? storedDeployMode : deployMode;
 
-  // Seed the editable fields from the existing KataConfig the first time it arrives. Guarded state
-  // adjustment during render is React's documented alternative to a setState-in-effect; comparing
-  // the object keeps it from repeating on every render.
-  const [syncedKataConfig, setSyncedKataConfig] = useState<typeof kataConfig>(undefined);
-  if (isEdit && kataConfig && syncedKataConfig !== kataConfig) {
-    setSyncedKataConfig(kataConfig);
+  // Seed the editable fields from the existing KataConfig the first time it arrives, and re-seed
+  // only when the watched resource is actually replaced. A watch status update delivers a new
+  // object reference for the same resource, so comparing references would reset the form on every
+  // status change and silently discard unsaved edits (e.g. a logLevel change made just before the
+  // operator reports progress). metadata.uid is stable across updates and changes only when the
+  // object is deleted and recreated — exactly when re-seeding is wanted. Fixtures without a uid
+  // fall back to reference identity to preserve the previous behaviour.
+  const kataConfigIdentity: string | typeof kataConfig = kataConfig?.metadata?.uid ?? kataConfig;
+  const [syncedKataConfigIdentity, setSyncedKataConfigIdentity] = useState<
+    string | typeof kataConfig
+  >(undefined);
+  if (isEdit && kataConfig && kataConfigIdentity !== syncedKataConfigIdentity) {
+    setSyncedKataConfigIdentity(kataConfigIdentity);
 
     const spec = kataConfig.spec ?? {};
 
