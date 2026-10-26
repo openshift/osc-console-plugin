@@ -41,6 +41,8 @@ import {
   useGcpNetworking,
   usePeerPodsCm,
 } from '../k8s/setup';
+import { useCanWritePeerPodsCm } from '../utils/rbac/useOscPermissions';
+import { PermissionHint } from '../utils/rbac/PermissionHint';
 import { toYaml } from '../utils/yaml';
 import { AWS_DESCRIBE_CLI } from '../utils/awsCli';
 import { normalizeCsvList } from '../utils/csv';
@@ -188,6 +190,8 @@ const PeerPodsConfigWizard: FC = () => {
   const { t } = useTranslation('plugin__osc-openshift-console-plugin');
   const navigate = useNavigate();
   const [existing, loaded] = usePeerPodsCm();
+
+  const { allowed: canWritePeerPodsCm, loading: rbacLoading } = useCanWritePeerPodsCm(!!existing);
   const gcp = useGcpNetworking();
   const aws = useAwsNetworking();
   const azure = useAzureNetworking();
@@ -315,6 +319,10 @@ const PeerPodsConfigWizard: FC = () => {
       };
 
   const save = async () => {
+    if (!loaded || rbacLoading || !canWritePeerPodsCm) {
+      return;
+    }
+
     setBusy(true);
     setError(undefined);
     try {
@@ -566,6 +574,10 @@ const PeerPodsConfigWizard: FC = () => {
                     </FormGroup>
                   </ExpandableSection>
 
+                  <PermissionHint
+                    allowed={loaded && canWritePeerPodsCm}
+                    loading={!loaded || rbacLoading}
+                  />
                   {error && (
                     <Alert variant="danger" isInline title={t('Could not save peer-pods-cm')}>
                       {error}
@@ -577,7 +589,7 @@ const PeerPodsConfigWizard: FC = () => {
                       variant="primary"
                       onClick={() => void save()}
                       isLoading={busy}
-                      isDisabled={busy || !loaded}
+                      isDisabled={busy || !loaded || rbacLoading || !canWritePeerPodsCm}
                     >
                       {existing ? t('Save') : t('Create')}
                     </Button>

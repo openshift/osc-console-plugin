@@ -73,6 +73,8 @@ import {
 } from '../utils/workload';
 import { parseCsvList } from '../utils/csv';
 import { fromYaml, toYaml } from '../utils/yaml';
+import { useCanCreateWorkload } from '../utils/rbac/useOscPermissions';
+import { PermissionHint } from '../utils/rbac/PermissionHint';
 import { IsolationLabel } from './IsolationLabel';
 import { NamespaceSelect } from './NamespaceSelect';
 import './sandbox.css';
@@ -329,38 +331,130 @@ const CreateSandboxWorkload: FC = () => {
   // manifest. Parse + sanity-check the edit so an invalid document blocks Create with a clear error
   // instead of a cryptic API failure (issue #9).
   const review = useMemo(():
-    | { ok: true; obj: Record<string, unknown> }
+    | {
+        ok: true;
+        obj: Record<string, unknown>;
+        kind: 'Pod' | 'Deployment';
+        name: string;
+        namespace: string;
+      }
     | { ok: false; error: string } => {
-    if (editedManifest === undefined) return { ok: true, obj: manifest };
-    let parsed: unknown;
-    try {
-      parsed = fromYaml(editedManifest);
-    } catch (e) {
-      return { ok: false, error: (e as Error)?.message ?? String(e) };
+    let parsed: unknown = manifest;
+
+    if (editedManifest !== undefined) {
+      try {
+        parsed = fromYaml(editedManifest);
+      } catch (e) {
+        return {
+          ok: false,
+          error: (e as Error)?.message ?? String(e),
+        };
+      }
     }
-    const obj = parsed as { kind?: unknown; metadata?: { name?: unknown } } | null;
-    if (!obj || typeof obj !== 'object' || typeof obj.kind !== 'string' || !obj.metadata?.name)
-      return { ok: false, error: t('The manifest needs a kind and a metadata.name.') };
-    return { ok: true, obj: obj };
-  }, [editedManifest, manifest, t]);
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {
+        ok: false,
+        error: t('The manifest must be a Kubernetes object.'),
+      };
+    }
+
+    const obj = parsed as Record<string, unknown>;
+    const kind = obj.kind;
+    const apiVersion = obj.apiVersion;
+
+    if (
+      !(
+        (kind === 'Pod' && apiVersion === 'v1') ||
+        (kind === 'Deployment' && apiVersion === 'apps/v1')
+      )
+    ) {
+      return {
+        ok: false,
+        error: t('Only v1 Pods and apps/v1 Deployments are supported.'),
+      };
+    }
+
+    const metadata = obj.metadata as Record<string, unknown> | undefined;
+
+    const name = metadata?.name;
+    const requestedNamespace = metadata?.namespace;
+
+    if (typeof name !== 'string' || !K8S_NAME_RE.test(name) || name.length > 63) {
+      return {
+        ok: false,
+        error: t('The manifest has an invalid metadata.name.'),
+      };
+    }
+
+    if (
+      requestedNamespace !== undefined &&
+      (typeof requestedNamespace !== 'string' || !requestedNamespace.trim())
+    ) {
+      return {
+        ok: false,
+        error: t('The manifest has an invalid namespace.'),
+      };
+    }
+
+    const namespace = requestedNamespace ?? form.namespace;
+
+    if (!namespace.trim()) {
+      return {
+        ok: false,
+        error: t('A namespace is required.'),
+      };
+    }
+
+    return {
+      ok: true,
+      kind,
+      name,
+      namespace,
+      obj: {
+        ...obj,
+        metadata: {
+          ...metadata,
+          name,
+          namespace,
+        },
+      },
+    };
+  }, [editedManifest, manifest, form.namespace, t]);
+
+  const targetKind = review.ok ? review.kind : 'Pod';
+
+  const targetNamespace = review.ok ? review.namespace : form.namespace;
+
+  const { canCreate: canCreateWorkload, loading: workloadRbacLoading } = useCanCreateWorkload(
+    targetKind,
+    targetNamespace,
+  );
+
+  const targetNsPhase = namespacePhase(targetNamespace, namespaces ?? [], nsLoaded);
+
+  const targetNsUsable = targetNsPhase === 'active' || targetNsPhase === 'unknown';
 
   const onSave = async () => {
     setError(undefined);
+
     if (!review.ok) {
       setError(review.error);
       return;
     }
-    const obj = review.obj;
-    const kind = obj.kind as string;
-    const meta = (obj.metadata ?? {}) as { name?: string; namespace?: string };
+
+    if (workloadRbacLoading || !canCreateWorkload || !targetNsUsable) {
+      setError(t('Cannot create this workload: check permissions and namespace.'));
+      return;
+    }
+
     try {
       await k8sCreate({
-        model: kind === 'Deployment' ? DeploymentModel : PodModel,
-        data: obj,
+        model: review.kind === 'Deployment' ? DeploymentModel : PodModel,
+        data: review.obj,
       });
-      void navigate(
-        `/sandboxes/workloads/${kind}/${meta.namespace ?? form.namespace}/${meta.name ?? form.name}`,
-      );
+
+      void navigate(`/sandboxes/workloads/${review.kind}/${review.namespace}/${review.name}`);
     } catch (e) {
       setError((e as Error)?.message ?? String(e));
     }
@@ -998,8 +1092,13 @@ const CreateSandboxWorkload: FC = () => {
           <WizardStep
             name={t('Review')}
             id="step-review"
-            footer={{ nextButtonText: t('Create'), isNextDisabled: !review.ok }}
+            footer={{
+              nextButtonText: t('Create'),
+              isNextDisabled:
+                !review.ok || !targetNsUsable || workloadRbacLoading || !canCreateWorkload,
+            }}
           >
+            <PermissionHint allowed={canCreateWorkload} loading={workloadRbacLoading} />
             {error && (
               <Alert variant="danger" title={t('Could not create workload')} isInline>
                 {error}
@@ -1013,15 +1112,21 @@ const CreateSandboxWorkload: FC = () => {
                     <DescriptionList isHorizontal isCompact>
                       <DescriptionListGroup>
                         <DescriptionListTerm>{t('Type')}</DescriptionListTerm>
-                        <DescriptionListDescription>{form.kind}</DescriptionListDescription>
+                        <DescriptionListDescription>
+                          {review.ok ? review.kind : form.kind}
+                        </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>
                         <DescriptionListTerm>{t('Name')}</DescriptionListTerm>
-                        <DescriptionListDescription>{form.name}</DescriptionListDescription>
+                        <DescriptionListDescription>
+                          {review.ok ? review.name : form.name}
+                        </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>
                         <DescriptionListTerm>{t('Namespace')}</DescriptionListTerm>
-                        <DescriptionListDescription>{form.namespace}</DescriptionListDescription>
+                        <DescriptionListDescription>
+                          {review.ok ? review.namespace : form.namespace}
+                        </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>
                         <DescriptionListTerm>{t('Runtime class')}</DescriptionListTerm>

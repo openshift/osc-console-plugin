@@ -19,6 +19,14 @@ export type KataConfigKind = K8sResourceCommon & {
     enablePeerPods?: boolean;
     logLevel?: string;
     checkNodeEligibility?: boolean;
+    kataConfigPoolSelector?: {
+      matchLabels?: Record<string, string>;
+      matchExpressions?: {
+        key: string;
+        operator: string;
+        values?: string[];
+      }[];
+    };
   };
   status?: {
     conditions?: {
@@ -93,6 +101,8 @@ export type DeploymentKind = K8sResourceCommon & {
   };
 };
 
+export type ReplicaSetKind = K8sResourceCommon;
+
 export type DaemonSetKind = K8sResourceCommon & {
   status?: {
     desiredNumberScheduled?: number;
@@ -143,6 +153,23 @@ export type EventKind = K8sResourceCommon & {
   lastTimestamp?: string;
   firstTimestamp?: string;
   eventTime?: string;
+};
+
+export type CsvKind = K8sResourceCommon & {
+  status?: {
+    phase?: string;
+    reason?: string;
+    message?: string;
+  };
+};
+
+export type SubscriptionKind = K8sResourceCommon & {
+  status?: {
+    state?: string;
+    installedCSV?: string;
+    installPlanRef?: { name?: string };
+    conditions?: { type: string; status: string; reason?: string; message?: string }[];
+  };
 };
 
 /** Isolation classification derived from a RuntimeClass handler. */

@@ -30,15 +30,18 @@ const k8sCreate = jest.fn<Promise<unknown>, [CreateArgs]>(() => Promise.resolve(
 jest.mock('@openshift-console/dynamic-plugin-sdk', () => ({
   DocumentTitle: ({ children }: { children?: ReactNode }) => <>{children}</>,
   ListPageHeader: ({ title }: { title?: ReactNode }) => <h1>{title}</h1>,
-  // Named watches come from window.__watchResults; everything else falls back to empty.
+  // Watches come from window.__watchResults, keyed by name or (for list watches) kind;
+  // everything else falls back to empty.
   useK8sWatchResource: (o: Watch): WatchResult => {
-    const named = o.name ? window.__watchResults?.[o.name] : undefined;
-    return named ?? (o.isList ? [[], true, undefined] : [undefined, true, undefined]);
+    const key = o.name ?? o.groupVersionKind?.kind;
+    const found = key ? window.__watchResults?.[key] : undefined;
+    return found ?? (o.isList ? [[], true, undefined] : [undefined, true, undefined]);
   },
   k8sCreate: (args: CreateArgs) => k8sCreate(args),
   // The feature-gate ConfigMap does not exist yet, so ensureFeatureGate() takes its create path.
   k8sGet: () => Promise.reject(Object.assign(new Error('not found'), { code: 404 })),
   k8sPatch: jest.fn(() => Promise.resolve({})),
+  useAccessReview: (): [boolean, boolean] => [true, false],
 }));
 
 // Keep the router real — the wizard renders inside one — but watch where it sends the user.
@@ -56,13 +59,18 @@ const ABSENT: WatchResult = [undefined, false, { code: 404, message: 'not found'
 const LOADING: WatchResult = [undefined, false, undefined];
 const CONFIGURED: WatchResult = [{ data: { CLOUD_PROVIDER: 'azure' } }, true, undefined];
 
-const renderWizard = (peerPodsCm: WatchResult = ABSENT) => {
-  window.__watchResults = { [PEER_PODS_CM]: peerPodsCm };
-  return render(
-    <MemoryRouter initialEntries={['/sandboxes/setup/kataconfig']}>
-      <KataConfigWizard />
-    </MemoryRouter>,
-  );
+const wizard = () => (
+  <MemoryRouter initialEntries={['/sandboxes/setup/kataconfig']}>
+    <KataConfigWizard />
+  </MemoryRouter>
+);
+
+const renderWizard = (
+  peerPodsCm: WatchResult = ABSENT,
+  watches: Record<string, WatchResult> = {},
+) => {
+  window.__watchResults = { [PEER_PODS_CM]: peerPodsCm, ...watches };
+  return render(wizard());
 };
 
 beforeEach(() => {
@@ -159,5 +167,62 @@ describe('KataConfigWizard — peer pods config map', () => {
     renderWizard(LOADING);
 
     expect(warning()).not.toBeInTheDocument();
+  });
+});
+
+interface KataConfigFixture {
+  apiVersion: string;
+  kind: string;
+  metadata: { name: string; uid: string };
+  spec: { enablePeerPods: boolean; checkNodeEligibility: boolean; logLevel: string };
+  status?: unknown;
+}
+
+/**
+ * The form is seeded from the KataConfig the watch delivers. A status update from the operator
+ * arrives as a new object reference for the same resource; keying the seed off that reference made
+ * the form reinitialize and silently discard unsaved edits (e.g. logLevel info -> debug).
+ */
+describe('KataConfigWizard — unsaved edits survive watch updates', () => {
+  const existingKataConfig = (uid: string, logLevel: string): KataConfigFixture => ({
+    apiVersion: 'kataconfiguration.openshift.io/v1',
+    kind: 'KataConfig',
+    metadata: { name: 'example-kataconfig', uid },
+    spec: { enablePeerPods: true, checkNodeEligibility: false, logLevel },
+  });
+
+  const editWatches = (resource: KataConfigFixture): Record<string, WatchResult> => ({
+    [PEER_PODS_CM]: CONFIGURED,
+    KataConfig: [[resource], true, undefined],
+  });
+
+  it('keeps an unsaved logLevel edit across a status update for the same resource', async () => {
+    const resource = existingKataConfig('uid-1', 'info');
+    const { rerender } = renderWizard(CONFIGURED, editWatches(resource));
+
+    expect(screen.getByLabelText('Log level')).toHaveValue('info');
+    await userEvent.selectOptions(screen.getByLabelText('Log level'), 'debug');
+    expect(screen.getByLabelText('Log level')).toHaveValue('debug');
+
+    // The same resource (same uid) delivered again with a new reference and updated status.
+    window.__watchResults = editWatches({
+      ...resource,
+      status: { kataConfigStatus: { conditions: [] } },
+    });
+    rerender(wizard());
+
+    expect(screen.getByLabelText('Log level')).toHaveValue('debug');
+  });
+
+  it('re-seeds the form when the resource is replaced (new uid)', async () => {
+    const resource = existingKataConfig('uid-1', 'info');
+    const { rerender } = renderWizard(CONFIGURED, editWatches(resource));
+
+    await userEvent.selectOptions(screen.getByLabelText('Log level'), 'debug');
+
+    window.__watchResults = editWatches(existingKataConfig('uid-2', 'info'));
+    rerender(wizard());
+
+    expect(screen.getByLabelText('Log level')).toHaveValue('info');
   });
 });

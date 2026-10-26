@@ -49,6 +49,8 @@ import type { DeploymentKind, PeerPodKind, PodKind } from '../k8s/types';
 import { buildIsolationMap, isolationDescription } from '../utils/runtime';
 import { peerPodNeedsDiagnostics } from '../utils/caaDiagnostics';
 import { podDisplayStatus, podRestartCount, statusColor } from '../utils/status';
+import { useCanDeleteWorkload } from '../utils/rbac/useOscPermissions';
+import { PermissionHint } from '../utils/rbac/PermissionHint';
 import { ContainerStatuses } from './ContainerStatuses';
 import { IsolationLabel } from './IsolationLabel';
 import PeerPodDiagnostics from './PeerPodDiagnostics';
@@ -141,6 +143,10 @@ const SandboxWorkloadDetail: FC = () => {
   const navigate = useNavigate();
   const { kind, ns, name } = useParams();
   const isPod = kind === 'Pod';
+  const { canDelete, loading: deleteRbacLoading } = useCanDeleteWorkload(
+    isPod ? 'Pod' : 'Deployment',
+    ns,
+  );
   const [runtimeClasses] = useRuntimeClasses();
   const peerPods = usePeerPodIndex();
 
@@ -236,6 +242,7 @@ const SandboxWorkloadDetail: FC = () => {
           <FlexItem>
             <Button
               variant="danger"
+              isDisabled={deleteRbacLoading || !canDelete}
               onClick={() => {
                 setDeleteOpen(true);
               }}
@@ -466,6 +473,9 @@ const SandboxWorkloadDetail: FC = () => {
             </div>
           </Tab>
         </Tabs>
+        {!canDelete && !deleteRbacLoading && (
+          <PermissionHint allowed={canDelete} loading={deleteRbacLoading} />
+        )}
       </PageSection>
 
       {deleteOpen && (

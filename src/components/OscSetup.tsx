@@ -330,7 +330,9 @@ const OscSetup: FC = () => {
       action:
         kata.phase === 'absent'
           ? { label: t('Create KataConfig'), href: '/sandboxes/setup/kataconfig' }
-          : undefined,
+          : kata.phase === 'ready' || kata.phase === 'failed'
+            ? { label: t('Edit KataConfig'), href: '/sandboxes/setup/kataconfig' }
+            : undefined,
     },
     {
       title: t('Pod VM image'),

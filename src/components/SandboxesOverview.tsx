@@ -35,10 +35,16 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useKataConfig, useRuntimeClasses, useSandboxWorkloads } from '../k8s/hooks';
-import { CAA_DAEMONSET, DaemonSetGVK, OSC_NAMESPACE } from '../k8s/resources';
-import type { DaemonSetKind } from '../k8s/types';
+import {
+  CAA_DAEMONSET,
+  ClusterServiceVersionGVK,
+  DaemonSetGVK,
+  OSC_NAMESPACE,
+  SubscriptionGVK,
+} from '../k8s/resources';
+import type { CsvKind, DaemonSetKind, SubscriptionKind } from '../k8s/types';
 import { isSandboxRuntimeClass, isolationDescription, isolationForHandler } from '../utils/runtime';
-import { kataConfigReadiness, statusCategory } from '../utils/status';
+import { humanizeCondition, kataConfigReadiness, statusCategory } from '../utils/status';
 import { IsolationLabel } from './IsolationLabel';
 import RecentEventsCard from './RecentEventsCard';
 import './sandbox.css';
@@ -164,6 +170,25 @@ const SandboxesOverview: FC = () => {
     namespace: OSC_NAMESPACE,
     name: CAA_DAEMONSET,
   });
+  const [csvs] = useK8sWatchResource<CsvKind[]>({
+    groupVersionKind: ClusterServiceVersionGVK,
+    namespace: OSC_NAMESPACE,
+    isList: true,
+  });
+  const oscCsv = (csvs ?? []).find((c) =>
+    (c.metadata?.name ?? '').startsWith('sandboxed-containers-operator'),
+  );
+  const [subs] = useK8sWatchResource<SubscriptionKind[]>({
+    groupVersionKind: SubscriptionGVK,
+    namespace: OSC_NAMESPACE,
+    isList: true,
+  });
+  const oscSub = (subs ?? []).find((s) =>
+    (s.metadata?.name ?? '').startsWith('sandboxed-containers-operator'),
+  );
+  const subConditions = (oscSub?.status?.conditions ?? []).filter(
+    (c) => c.status === 'True' && c.type !== 'CatalogSourcesUnhealthy',
+  );
 
   const counts = useMemo(() => {
     const peerpod = workloads.filter((w) => w.isolation === 'peerpod').length;
@@ -338,12 +363,22 @@ const SandboxesOverview: FC = () => {
                         ) : kata.phase === 'installing' ? (
                           <Label color="orange" icon={<InProgressIcon />}>
                             {t('Installing')}
-                            {kata.reason ? ` (${kata.reason})` : ''}
+                            {kata.reason ? ` — ${humanizeCondition(kata.reason).summary}` : ''}
                           </Label>
                         ) : kata.phase === 'failed' ? (
-                          <Label color="red" icon={<ExclamationCircleIcon />}>
-                            {t('Install failed')}
-                          </Label>
+                          <>
+                            <Label color="red" icon={<ExclamationCircleIcon />}>
+                              {t('Install failed')}
+                            </Label>
+                            {(() => {
+                              const hint = humanizeCondition('NodesFailing');
+                              return hint.remediation ? (
+                                <div className="osc-openshift-console-plugin__muted osc-openshift-console-plugin__mt">
+                                  {hint.remediation}
+                                </div>
+                              ) : null;
+                            })()}
+                          </>
                         ) : (
                           <Label color="green" icon={<CheckCircleIcon />}>
                             {t('Installed')}
@@ -388,6 +423,87 @@ const SandboxesOverview: FC = () => {
                         </DescriptionListDescription>
                       </DescriptionListGroup>
                     )}
+                    {kata.phase !== 'absent' &&
+                      ((nodes?.installed?.length ?? 0) > 0 ||
+                        (nodes?.installing?.length ?? 0) > 0 ||
+                        failedNodes.length > 0) && (
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>{t('Node details')}</DescriptionListTerm>
+                          <DescriptionListDescription>
+                            <Stack hasGutter>
+                              {(nodes?.installed ?? []).map((n) => (
+                                <Flex
+                                  key={n}
+                                  gap={{ default: 'gapSm' }}
+                                  alignItems={{ default: 'alignItemsCenter' }}
+                                >
+                                  <FlexItem>
+                                    <CheckCircleIcon className="osc-openshift-console-plugin__icon-success" />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <ResourceLink
+                                      groupVersionKind={{ version: 'v1', kind: 'Node' }}
+                                      name={n}
+                                      linkTo
+                                    />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Label isCompact color="green">
+                                      {t('Installed')}
+                                    </Label>
+                                  </FlexItem>
+                                </Flex>
+                              ))}
+                              {(nodes?.installing ?? []).map((n) => (
+                                <Flex
+                                  key={n}
+                                  gap={{ default: 'gapSm' }}
+                                  alignItems={{ default: 'alignItemsCenter' }}
+                                >
+                                  <FlexItem>
+                                    <InProgressIcon />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <ResourceLink
+                                      groupVersionKind={{ version: 'v1', kind: 'Node' }}
+                                      name={n}
+                                      linkTo
+                                    />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Label isCompact color="blue">
+                                      {t('Installing')}
+                                    </Label>
+                                  </FlexItem>
+                                </Flex>
+                              ))}
+                              {failedNodes.map((n) => (
+                                <Flex
+                                  key={n}
+                                  gap={{ default: 'gapSm' }}
+                                  alignItems={{ default: 'alignItemsCenter' }}
+                                >
+                                  <FlexItem>
+                                    <ExclamationCircleIcon className="osc-openshift-console-plugin__icon-danger" />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <ResourceLink
+                                      groupVersionKind={{ version: 'v1', kind: 'Node' }}
+                                      name={n}
+                                      linkTo
+                                    />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Label isCompact color="red">
+                                      {t('Failed')}
+                                    </Label>
+                                  </FlexItem>
+                                </Flex>
+                              ))}
+                            </Stack>
+                          </DescriptionListDescription>
+                        </DescriptionListGroup>
+                      )}
                     <DescriptionListGroup>
                       <DescriptionListTerm>{t('Peer pods')}</DescriptionListTerm>
                       <DescriptionListDescription>
@@ -404,6 +520,69 @@ const SandboxesOverview: FC = () => {
                             namespace={OSC_NAMESPACE}
                           />
                           {` ${caaReady} ${t('ready')}`}
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                    )}
+                    {oscCsv && (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>{t('Operator')}</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          {oscCsv.status?.phase === 'Succeeded' ? (
+                            <Label color="green" icon={<CheckCircleIcon />}>
+                              {t('Healthy')}
+                            </Label>
+                          ) : oscCsv.status?.phase === 'Failed' ? (
+                            <Label color="red" icon={<ExclamationCircleIcon />}>
+                              {t('{{phase}}: {{reason}}', {
+                                phase: oscCsv.status.phase,
+                                reason:
+                                  oscCsv.status.reason ??
+                                  oscCsv.status.message ??
+                                  t('Unknown error'),
+                              })}
+                            </Label>
+                          ) : (
+                            <Label color="orange" icon={<InProgressIcon />}>
+                              {oscCsv.status?.phase ?? t('Unknown')}
+                            </Label>
+                          )}
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                    )}
+                    {subConditions.length > 0 && (
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>{t('Subscription conditions')}</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          <Stack hasGutter>
+                            {subConditions.map((c) => (
+                              <Flex
+                                key={c.type}
+                                gap={{ default: 'gapSm' }}
+                                alignItems={{ default: 'alignItemsCenter' }}
+                              >
+                                <FlexItem>
+                                  <Label
+                                    isCompact
+                                    color={c.type === 'InstallSucceeded' ? 'green' : 'orange'}
+                                    icon={
+                                      c.type === 'InstallSucceeded' ? (
+                                        <CheckCircleIcon />
+                                      ) : (
+                                        <ExclamationTriangleIcon />
+                                      )
+                                    }
+                                  >
+                                    {c.type}
+                                  </Label>
+                                </FlexItem>
+                                {c.message && (
+                                  <FlexItem className="osc-openshift-console-plugin__muted">
+                                    {c.message}
+                                  </FlexItem>
+                                )}
+                              </Flex>
+                            ))}
+                          </Stack>
                         </DescriptionListDescription>
                       </DescriptionListGroup>
                     )}

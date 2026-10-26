@@ -1,5 +1,5 @@
 import { PrometheusEndpoint, usePrometheusPoll } from '@openshift-console/dynamic-plugin-sdk';
-import { Card, CardBody, CardTitle, Grid, GridItem } from '@patternfly/react-core';
+import { Alert, Card, CardBody, CardTitle, Grid, GridItem } from '@patternfly/react-core';
 import type { FC } from 'react';
 import { useTranslation } from 'react-i18next';
 import './sandbox.css';
@@ -63,6 +63,11 @@ const MetricCard: FC<{
       <CardBody>
         <div className="osc-openshift-console-plugin__stat-value">{format(last)}</div>
         <Sparkline values={values} color={color} label={t('{{metric}} trend', { metric: title })} />
+        {values.length === 0 && (
+          <div className="osc-openshift-console-plugin__muted">
+            {t('No data available for this metric.')}
+          </div>
+        )}
       </CardBody>
     </Card>
   );
@@ -92,11 +97,17 @@ export const WorkloadMetrics: FC<{
   return (
     <>
       {isPeerPod && (
-        <p className="osc-openshift-console-plugin__muted osc-openshift-console-plugin__mb">
+        <Alert
+          variant="info"
+          isInline
+          isPlain
+          title={t('Metrics may be limited for peer-pod workloads')}
+          className="osc-openshift-console-plugin__mb"
+        >
           {t(
-            'Note: peer pods run in a remote VM, so node-side metrics may not reflect in-VM usage.',
+            'Peer pods run in a remote cloud VM. Node-side container metrics (CPU, memory) may not reflect actual in-VM usage and can appear empty.',
           )}
-        </p>
+        </Alert>
       )}
       <Grid hasGutter>
         <GridItem span={6}>

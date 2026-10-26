@@ -105,3 +105,37 @@ export const kataConfigReadiness = (kc?: KataConfigKind): KataReadiness => {
   // Object exists but status hasn't populated yet (nascent) — treat as installing, never ready.
   return { phase: 'installing', ready: false, ...base };
 };
+
+export interface ConditionMessage {
+  summary: string;
+  remediation?: string;
+}
+
+const CONDITION_MESSAGES: Record<string, ConditionMessage> = {
+  BlockedByExistingKataPods: {
+    summary: 'Uninstall blocked by existing workloads',
+    remediation: 'Delete all pods using kata runtime classes, then retry the KataConfig deletion.',
+  },
+  NodesFailing: {
+    summary: 'One or more nodes failed to install the kata runtime',
+    remediation:
+      'Check the failing node logs and events in the openshift-sandboxed-containers-operator namespace.',
+  },
+  Installed: {
+    summary: 'The kata runtime is installed and ready',
+  },
+  Installing: {
+    summary: 'The kata runtime is being installed on worker nodes',
+    remediation: 'Wait for the rollout to complete. Each node reboots during installation.',
+  },
+  Uninstalling: {
+    summary: 'The kata runtime is being removed from worker nodes',
+  },
+};
+
+export const humanizeCondition = (reason?: string, message?: string): ConditionMessage => {
+  if (reason && CONDITION_MESSAGES[reason]) return CONDITION_MESSAGES[reason];
+  return {
+    summary: message ?? reason ?? 'Unknown condition',
+  };
+};

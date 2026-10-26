@@ -2878,6 +2878,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@playwright/test@npm:^1.52.0":
+  version: 1.64.0
+  resolution: "@playwright/test@npm:1.64.0"
+  dependencies:
+    playwright: "npm:1.64.0"
+  bin:
+    playwright: cli.js
+  checksum: 10c0/96db203daa9e5aa5fcbec3f8bc92074346334980961dcc2ef6e660add5ad4647037f98f3a84ba1ec431bfb6e6368df0fd53e7dbdd427560627deef978c762f0c
+  languageName: node
+  linkType: hard
+
 "@sinclair/typebox@npm:^0.34.0":
   version: 0.34.49
   resolution: "@sinclair/typebox@npm:0.34.49"
@@ -10928,6 +10939,7 @@ __metadata:
     "@patternfly/react-core": "npm:^6.4.3"
     "@patternfly/react-icons": "npm:^6.4.0"
     "@patternfly/react-table": "npm:^6.4.3"
+    "@playwright/test": "npm:^1.52.0"
     "@swc/core": "npm:^1.15.40"
     "@swc/jest": "npm:^0.2.39"
     "@testing-library/dom": "npm:^10.4.1"
@@ -11398,6 +11410,26 @@ __metadata:
     pvutils: "npm:^1.1.3"
     tslib: "npm:^2.8.1"
   checksum: 10c0/33cfab9283702782ae228bd2d4a51b1e9b2e0d6e2141207f29ee95716101ac4fe6e6821882da5f5eca28c74be3964b181b09e95cbbb757b2bd9dca918a5765fd
+  languageName: node
+  linkType: hard
+
+"playwright-core@npm:1.64.0":
+  version: 1.64.0
+  resolution: "playwright-core@npm:1.64.0"
+  bin:
+    playwright-core: cli.js
+  checksum: 10c0/fe3237282ada99d634e4d002efd3db6aa51218f7f4f3b1bc31515d30fa6eec5ec940d425e035db2af4e2856d9cae30b7a27bd167870b3285d40bdffd399ab286
+  languageName: node
+  linkType: hard
+
+"playwright@npm:1.64.0":
+  version: 1.64.0
+  resolution: "playwright@npm:1.64.0"
+  dependencies:
+    playwright-core: "npm:1.64.0"
+  bin:
+    playwright: cli.js
+  checksum: 10c0/f1ee856c280af2ac256225a1cc5e957847f0d2c56a039c89f02e31b0c9928c44e04311923a1b315bea16e3b26e5124e7c296644ad3c05e4c0a6aaa9584009933
   languageName: node
   linkType: hard
 
