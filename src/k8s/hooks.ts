@@ -138,19 +138,11 @@ export const useSandboxWorkloads = (): {
       const ns = rs.metadata?.namespace ?? '';
 
       const owner = rs.metadata?.ownerReferences?.find(
-        (ref) =>
-          ref.kind === 'Deployment' &&
-          ref.controller === true
+        (ref) => ref.kind === 'Deployment' && ref.controller === true,
       );
 
-      if (
-        owner?.uid &&
-        sandboxDeploymentUids.has(`${ns}/${owner.uid}`) &&
-        rs.metadata?.uid
-      ) {
-        sandboxReplicaSetUids.add(
-          `${ns}/${rs.metadata.uid}`
-        );
+      if (owner?.uid && sandboxDeploymentUids.has(`${ns}/${owner.uid}`) && rs.metadata?.uid) {
+        sandboxReplicaSetUids.add(`${ns}/${rs.metadata.uid}`);
       }
     });
 
@@ -160,19 +152,14 @@ export const useSandboxWorkloads = (): {
       const name = p.metadata?.name ?? '';
       const ns = p.metadata?.namespace ?? '';
       const owner = p.metadata?.ownerReferences?.find(
-        (ref) =>
-          ref.kind === 'ReplicaSet' &&
-          ref.controller === true
+        (ref) => ref.kind === 'ReplicaSet' && ref.controller === true,
       );
 
-      const isReplicaPod =
-        !!owner?.uid &&
-        sandboxReplicaSetUids.has(`${ns}/${owner.uid}`);
+      const isReplicaPod = !!owner?.uid && sandboxReplicaSetUids.has(`${ns}/${owner.uid}`);
 
       if (isReplicaPod) return;
       const isolation = isolationMap[rc] ?? 'unknown';
-      const peerPod =
-        isolation === 'peerpod' ? peerPods[`${ns}/${name}`] : undefined;
+      const peerPod = isolation === 'peerpod' ? peerPods[`${ns}/${name}`] : undefined;
       rows.push({
         uid: p.metadata?.uid ?? `${ns}/${name}`,
         kind: 'Pod',
@@ -192,23 +179,11 @@ export const useSandboxWorkloads = (): {
     return rows.sort((a, b) =>
       (b.creationTimestamp ?? '').localeCompare(a.creationTimestamp ?? ''),
     );
-  }, [
-    pods,
-    deployments,
-    replicaSets,
-    sandboxRCNames,
-    isolationMap,
-    peerPods,
-    rcLoaded,
-  ]);
+  }, [pods, deployments, replicaSets, sandboxRCNames, isolationMap, peerPods, rcLoaded]);
 
   return {
     workloads,
-    loaded:
-      rcLoaded &&
-      podsLoaded &&
-      deploymentsLoaded &&
-      replicaSetsLoaded,
+    loaded: rcLoaded && podsLoaded && deploymentsLoaded && replicaSetsLoaded,
     isolationMap,
   };
 };

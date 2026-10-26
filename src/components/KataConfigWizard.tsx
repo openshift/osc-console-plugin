@@ -33,7 +33,7 @@ import {
   TextInput,
 } from '@patternfly/react-core';
 import type { FC } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -46,11 +46,7 @@ import {
   NodeModel,
 } from '../k8s/resources';
 import { useKataConfig } from '../k8s/hooks';
-import {
-  useControlPlaneTopology,
-  useFeatureGatesCm,
-  usePeerPodsCm,
-} from '../k8s/setup';
+import { useControlPlaneTopology, useFeatureGatesCm, usePeerPodsCm } from '../k8s/setup';
 import type { NodeKind } from '../k8s/types';
 import {
   DAEMONSET_FALLBACK,
@@ -96,9 +92,7 @@ const KataConfigWizard: FC = () => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [selectorDirty, setSelectorDirty] = useState(false);
   const [deployModeDirty, setDeployModeDirty] = useState(false);
-  const [explicitlyDeselectedNodes, setExplicitlyDeselectedNodes] =
-    useState<string[]>([]);
-  const [initialized, setInitialized] = useState(false);
+  const [explicitlyDeselectedNodes, setExplicitlyDeselectedNodes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
@@ -107,34 +101,29 @@ const KataConfigWizard: FC = () => {
 
   const [featureGatesCm, featureGatesSettled] = useFeatureGatesCm();
 
-  useEffect(() => {
-    if (!isEdit || !featureGatesSettled || deployModeDirty) {
-      return;
-    }
+  // Edit mode starts from the deployment mode stored in the feature-gate ConfigMap, until the admin
+  // changes it. Derived during render instead of copied into state from an effect: the gate is not
+  // known until the ConfigMap settles, and a synchronous setState in an effect only adds a second
+  // render pass (react-hooks/set-state-in-effect).
+  const storedDeployMode: DeployMode =
+    featureGatesCm?.data?.deploymentMode === 'DaemonSet'
+      ? 'DaemonSet'
+      : featureGatesCm?.data?.deploymentMode === 'MachineConfig'
+        ? 'MachineConfig'
+        : 'Auto';
+  const effectiveDeployMode: DeployMode =
+    isEdit && !deployModeDirty ? storedDeployMode : deployMode;
 
-    const existingMode = featureGatesCm?.data?.deploymentMode;
+  // Seed the editable fields from the existing KataConfig the first time it arrives. Guarded state
+  // adjustment during render is React's documented alternative to a setState-in-effect; comparing
+  // the object keeps it from repeating on every render.
+  const [syncedKataConfig, setSyncedKataConfig] = useState<typeof kataConfig>(undefined);
+  if (isEdit && kataConfig && syncedKataConfig !== kataConfig) {
+    setSyncedKataConfig(kataConfig);
 
-    const mode: DeployMode =
-      existingMode === 'DaemonSet'
-        ? 'DaemonSet'
-        : existingMode === 'MachineConfig'
-          ? 'MachineConfig'
-          : 'Auto';
+    const spec = kataConfig.spec ?? {};
 
-    setDeployMode(mode);
-  }, [
-    isEdit,
-    featureGatesSettled,
-    featureGatesCm,
-    deployModeDirty,
-  ]);
-
-  useEffect(() => {
-    if (!isEdit || initialized) return;
-
-    const spec = kataConfig?.spec ?? {};
-
-    setName(kataConfig?.metadata?.name ?? 'example-kataconfig');
+    setName(kataConfig.metadata?.name ?? 'example-kataconfig');
     setEnablePeerPods(spec.enablePeerPods ?? true);
     setCheckNodeEligibility(spec.checkNodeEligibility ?? false);
     setLogLevel(spec.logLevel ?? 'info');
@@ -148,46 +137,49 @@ const KataConfigWizard: FC = () => {
       setPoolLabelKey(entries[0][0]);
       setPoolLabelValue(entries[0][1]);
     }
+  }
 
-    setInitialized(true);
-  }, [isEdit, initialized, kataConfig]);
-
-  const [nodes, nodesLoaded] = useK8sWatchResource<NodeKind[]>({ groupVersionKind: NodeGVK, isList: true });
+  const [nodes, nodesLoaded] = useK8sWatchResource<NodeKind[]>({
+    groupVersionKind: NodeGVK,
+    isList: true,
+  });
   const workerNodes = useMemo(
-    () =>
-      (nodes ?? []).filter((n) =>
-        Object.keys(n.metadata?.labels ?? {}).includes(WORKER_LABEL),
-      ),
+    () => (nodes ?? []).filter((n) => Object.keys(n.metadata?.labels ?? {}).includes(WORKER_LABEL)),
     [nodes],
   );
 
-  useEffect(() => {
-    if (!isEdit || !initialized || selectorDirty) return;
+  // Edit mode also starts from the nodes currently labeled for kata, until the admin edits the
+  // selection. Keyed by node name so a render that finds the same set never touches state.
+  const labeledNodeSelection = useMemo(() => {
+    if (!isEdit) return undefined;
 
-    const labels =
-      kataConfig?.spec?.kataConfigPoolSelector?.matchLabels;
+    const labels = kataConfig?.spec?.kataConfigPoolSelector?.matchLabels;
 
-    if (labels?.[KATA_NODE_LABEL] !== 'true') return;
+    if (labels?.[KATA_NODE_LABEL] !== 'true') return undefined;
 
-    const nextSelected = workerNodes
-      .filter(
-        (node) =>
-          node.metadata?.labels?.[KATA_NODE_LABEL] === 'true',
-      )
+    return workerNodes
+      .filter((node) => node.metadata?.labels?.[KATA_NODE_LABEL] === 'true')
       .map((node) => node.metadata?.name ?? '')
       .filter(Boolean);
+  }, [isEdit, kataConfig, workerNodes]);
+  const labeledNodeSelectionKey = labeledNodeSelection?.join('\u0000') ?? null;
+  const [syncedNodeSelectionKey, setSyncedNodeSelectionKey] = useState<string | null>(null);
 
-    setSelectedNodes((previous) => {
-      if (
-        previous.length === nextSelected.length &&
-        previous.every((name, index) => name === nextSelected[index])
-      ) {
-        return previous;
-      }
+  if (
+    !selectorDirty &&
+    labeledNodeSelection &&
+    labeledNodeSelectionKey !== syncedNodeSelectionKey
+  ) {
+    setSyncedNodeSelectionKey(labeledNodeSelectionKey);
 
-      return nextSelected;
-    });
-  }, [isEdit, initialized, selectorDirty, kataConfig, workerNodes]);
+    const unchanged =
+      selectedNodes.length === labeledNodeSelection.length &&
+      selectedNodes.every((node, index) => node === labeledNodeSelection[index]);
+
+    if (!unchanged) {
+      setSelectedNodes(labeledNodeSelection);
+    }
+  }
 
   // Detect a hosted control plane (HyperShift/HCP): controlPlaneTopology === 'External' means there
   // is no in-cluster MachineConfig Operator, so kata must install via DaemonSet (no node reboots).
@@ -206,25 +198,21 @@ const KataConfigWizard: FC = () => {
     setSelectorDirty(true);
 
     setSelectedNodes((prev) =>
-      checked
-        ? Array.from(new Set([...prev, node]))
-        : prev.filter((n) => n !== node),
+      checked ? Array.from(new Set([...prev, node])) : prev.filter((n) => n !== node),
     );
 
     setExplicitlyDeselectedNodes((prev) =>
-      checked
-        ? prev.filter((n) => n !== node)
-        : Array.from(new Set([...prev, node])),
+      checked ? prev.filter((n) => n !== node) : Array.from(new Set([...prev, node])),
     );
   };
 
-  const deploymentModeValue = DEPLOYMENT_MODE_VALUE[deployMode];
+  const deploymentModeValue = DEPLOYMENT_MODE_VALUE[effectiveDeployMode];
   // What the selection resolves to on this cluster (drives the reboot warning) — shared with the
   // setup checklist so the two screens agree on whether nodes reboot. undefined while detecting.
   const willReboot = modeWillReboot(resolveDeploymentMode(deploymentModeValue, isHosted));
 
   const spec: Record<string, unknown> = {
-    ...(isEdit ? kataConfig?.spec ?? {} : {}),
+    ...(isEdit ? (kataConfig?.spec ?? {}) : {}),
     enablePeerPods,
     checkNodeEligibility,
     logLevel,
@@ -267,9 +255,9 @@ const KataConfigWizard: FC = () => {
       const desired = { deploymentMode: deploymentModeValue };
       try {
         const existing = await k8sGet<ConfigMapKind>({
-        model: ConfigMapModel,
-        name: FEATURE_GATES_CM,
-        ns: OSC_NAMESPACE,
+          model: ConfigMapModel,
+          name: FEATURE_GATES_CM,
+          ns: OSC_NAMESPACE,
         });
         // Merge so we preserve any other feature gates already set (confidential, layeredImageDeployment).
         // Only attempt patch if ConfigMap was found successfully.
@@ -279,9 +267,11 @@ const KataConfigWizard: FC = () => {
           data: [{ op: 'add', path: '/data', value: { ...(existing.data ?? {}), ...desired } }],
         });
       } catch (e) {
-        // Only create if we got a 404 (not found). Other errors should propagate.
-        const err = e as { response?: { status?: number } } | Error;
-        const status = 'response' in err ? err.response?.status : undefined;
+        // Only create if we got a 404 (not found). Other errors should propagate. The SDK's
+        // HttpError carries the code in both `code` and `response.status`, and mocks/tests may
+        // populate only one, so accept either.
+        const err = e as { code?: number; response?: { status?: number } };
+        const status = err.response?.status ?? err.code;
         if (status === 404) {
           await k8sCreate({ model: ConfigMapModel, data: featureGateManifest });
         } else {
@@ -292,10 +282,7 @@ const KataConfigWizard: FC = () => {
   };
 
   const save = async () => {
-    if (
-      !nodesLoaded &&
-      (!isEdit || selectorDirty)
-    ) {
+    if (!nodesLoaded && (!isEdit || selectorDirty)) {
       setError(t('Wait for node information to load.'));
       return;
     }
@@ -305,19 +292,15 @@ const KataConfigWizard: FC = () => {
     try {
       await ensureFeatureGate();
       const previousSelectorUsesNodeLabels =
-        kataConfig?.spec?.kataConfigPoolSelector
-          ?.matchLabels?.[KATA_NODE_LABEL] === 'true';
+        kataConfig?.spec?.kataConfigPoolSelector?.matchLabels?.[KATA_NODE_LABEL] === 'true';
 
-      const shouldUpdateNodeLabels =
-        (!isEdit || selectorDirty) && useSpecificNodes;
+      const shouldUpdateNodeLabels = (!isEdit || selectorDirty) && useSpecificNodes;
 
       if (shouldUpdateNodeLabels) {
         const desiredNodes = new Set(selectedNodes);
 
         const nodesToUnlabel = new Set(
-          isEdit && previousSelectorUsesNodeLabels
-            ? explicitlyDeselectedNodes
-            : [],
+          isEdit && previousSelectorUsesNodeLabels ? explicitlyDeselectedNodes : [],
         );
 
         const nodePatches = (nodes ?? []).flatMap((node) => {
@@ -325,16 +308,12 @@ const KataConfigWizard: FC = () => {
 
           if (!nodeName) return [];
 
-          const currentlyLabeled =
-            node.metadata?.labels?.[KATA_NODE_LABEL] === 'true';
+          const currentlyLabeled = node.metadata?.labels?.[KATA_NODE_LABEL] === 'true';
 
-          const shouldAdd =
-            desiredNodes.has(nodeName) && !currentlyLabeled;
+          const shouldAdd = desiredNodes.has(nodeName) && !currentlyLabeled;
 
           const shouldRemove =
-            nodesToUnlabel.has(nodeName) &&
-            !desiredNodes.has(nodeName) &&
-            currentlyLabeled;
+            nodesToUnlabel.has(nodeName) && !desiredNodes.has(nodeName) && currentlyLabeled;
 
           if (!shouldAdd && !shouldRemove) {
             return [];
@@ -367,7 +346,7 @@ const KataConfigWizard: FC = () => {
       if (isEdit) {
         await k8sPatch({
           model: KataConfigModel,
-          resource: kataConfig!,
+          resource: kataConfig,
           data: [
             {
               op: 'add',
@@ -528,7 +507,7 @@ const KataConfigWizard: FC = () => {
                       id="kc-mode-auto"
                       name="kc-deploymode"
                       label={t('Auto-detect (recommended)')}
-                      isChecked={deployMode === 'Auto'}
+                      isChecked={effectiveDeployMode === 'Auto'}
                       onChange={() => {
                         setDeployMode('Auto');
                         setDeployModeDirty(true);
@@ -538,7 +517,7 @@ const KataConfigWizard: FC = () => {
                       id="kc-mode-daemonset"
                       name="kc-deploymode"
                       label={t('DaemonSet — install without rebooting nodes')}
-                      isChecked={deployMode === 'DaemonSet'}
+                      isChecked={effectiveDeployMode === 'DaemonSet'}
                       onChange={() => {
                         setDeployMode('DaemonSet');
                         setDeployModeDirty(true);
@@ -548,7 +527,7 @@ const KataConfigWizard: FC = () => {
                       id="kc-mode-machineconfig"
                       name="kc-deploymode"
                       label={t('MachineConfig — reboots nodes (standalone clusters)')}
-                      isChecked={deployMode === 'MachineConfig'}
+                      isChecked={effectiveDeployMode === 'MachineConfig'}
                       onChange={() => {
                         setDeployMode('MachineConfig');
                         setDeployModeDirty(true);
@@ -712,9 +691,18 @@ const KataConfigWizard: FC = () => {
                     </FormGroup>
                   </ExpandableSection>
 
-                  <PermissionHint allowed={isEdit ? canPatchKataConfig : canCreateKataConfig} loading={rbacLoading} />
+                  <PermissionHint
+                    allowed={isEdit ? canPatchKataConfig : canCreateKataConfig}
+                    loading={rbacLoading}
+                  />
                   {error && (
-                    <Alert variant="danger" isInline title={isEdit ? t('Could not save KataConfig') : t('Could not create KataConfig')}>
+                    <Alert
+                      variant="danger"
+                      isInline
+                      title={
+                        isEdit ? t('Could not save KataConfig') : t('Could not create KataConfig')
+                      }
+                    >
                       {error}
                     </Alert>
                   )}

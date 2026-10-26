@@ -21,9 +21,7 @@ export const useOscPermissions = () => {
   };
 };
 
-export const useCanWritePeerPodsCm = (
-  exists: boolean
-) => {
+export const useCanWritePeerPodsCm = (exists: boolean) => {
   const [allowed, loading] = useAccessReview({
     group: '',
     resource: 'configmaps',
@@ -35,14 +33,10 @@ export const useCanWritePeerPodsCm = (
   return { allowed, loading };
 };
 
-export const useCanCreateWorkload = (
-  kind: 'Pod' | 'Deployment',
-  namespace?: string
-) => {
+export const useCanCreateWorkload = (kind: 'Pod' | 'Deployment', namespace?: string) => {
   const [canCreate, loading] = useAccessReview({
     group: kind === 'Deployment' ? 'apps' : '',
-    resource:
-      kind === 'Deployment' ? 'deployments' : 'pods',
+    resource: kind === 'Deployment' ? 'deployments' : 'pods',
     namespace: namespace?.trim() || undefined,
     verb: 'create',
   });

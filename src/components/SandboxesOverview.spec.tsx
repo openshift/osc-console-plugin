@@ -98,7 +98,7 @@ describe('SandboxesOverview — installation state', () => {
       }),
     );
 
-    expect(copy(/Installing \(WaitingForNodes\)/)).not.toHaveLength(0);
+    expect(copy(/Installing — WaitingForNodes/)).not.toHaveLength(0);
   });
 
   // Only once the rollout settles AND the runtime classes are registered is it genuinely usable.

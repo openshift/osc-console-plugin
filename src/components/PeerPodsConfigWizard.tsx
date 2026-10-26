@@ -191,10 +191,7 @@ const PeerPodsConfigWizard: FC = () => {
   const navigate = useNavigate();
   const [existing, loaded] = usePeerPodsCm();
 
-  const {
-    allowed: canWritePeerPodsCm,
-    loading: rbacLoading,
-  } = useCanWritePeerPodsCm(!!existing);
+  const { allowed: canWritePeerPodsCm, loading: rbacLoading } = useCanWritePeerPodsCm(!!existing);
   const gcp = useGcpNetworking();
   const aws = useAwsNetworking();
   const azure = useAzureNetworking();
@@ -592,12 +589,7 @@ const PeerPodsConfigWizard: FC = () => {
                       variant="primary"
                       onClick={() => void save()}
                       isLoading={busy}
-                      isDisabled={
-                        busy ||
-                        !loaded ||
-                        rbacLoading ||
-                        !canWritePeerPodsCm
-                      }
+                      isDisabled={busy || !loaded || rbacLoading || !canWritePeerPodsCm}
                     >
                       {existing ? t('Save') : t('Create')}
                     </Button>

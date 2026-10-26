@@ -375,18 +375,12 @@ const CreateSandboxWorkload: FC = () => {
       };
     }
 
-    const metadata = obj.metadata as
-      | Record<string, unknown>
-      | undefined;
+    const metadata = obj.metadata as Record<string, unknown> | undefined;
 
     const name = metadata?.name;
     const requestedNamespace = metadata?.namespace;
 
-    if (
-      typeof name !== 'string' ||
-      !K8S_NAME_RE.test(name) ||
-      name.length > 63
-    ) {
+    if (typeof name !== 'string' || !K8S_NAME_RE.test(name) || name.length > 63) {
       return {
         ok: false,
         error: t('The manifest has an invalid metadata.name.'),
@@ -395,10 +389,7 @@ const CreateSandboxWorkload: FC = () => {
 
     if (
       requestedNamespace !== undefined &&
-      (
-        typeof requestedNamespace !== 'string' ||
-        !requestedNamespace.trim()
-      )
+      (typeof requestedNamespace !== 'string' || !requestedNamespace.trim())
     ) {
       return {
         ok: false,
@@ -406,9 +397,7 @@ const CreateSandboxWorkload: FC = () => {
       };
     }
 
-    const namespace =
-      (requestedNamespace as string | undefined) ??
-      form.namespace;
+    const namespace = requestedNamespace ?? form.namespace;
 
     if (!namespace.trim()) {
       return {
@@ -435,24 +424,16 @@ const CreateSandboxWorkload: FC = () => {
 
   const targetKind = review.ok ? review.kind : 'Pod';
 
-  const targetNamespace = review.ok
-    ? review.namespace
-    : form.namespace;
+  const targetNamespace = review.ok ? review.namespace : form.namespace;
 
-  const {
-    canCreate: canCreateWorkload,
-    loading: workloadRbacLoading,
-  } = useCanCreateWorkload(targetKind, targetNamespace);
-
-  const targetNsPhase = namespacePhase(
+  const { canCreate: canCreateWorkload, loading: workloadRbacLoading } = useCanCreateWorkload(
+    targetKind,
     targetNamespace,
-    namespaces ?? [],
-    nsLoaded
   );
 
-  const targetNsUsable =
-    targetNsPhase === 'active' ||
-    targetNsPhase === 'unknown';
+  const targetNsPhase = namespacePhase(targetNamespace, namespaces ?? [], nsLoaded);
+
+  const targetNsUsable = targetNsPhase === 'active' || targetNsPhase === 'unknown';
 
   const onSave = async () => {
     setError(undefined);
@@ -462,29 +443,18 @@ const CreateSandboxWorkload: FC = () => {
       return;
     }
 
-    if (
-      workloadRbacLoading ||
-      !canCreateWorkload ||
-      !targetNsUsable
-    ) {
-      setError(
-        t('Cannot create this workload: check permissions and namespace.')
-      );
+    if (workloadRbacLoading || !canCreateWorkload || !targetNsUsable) {
+      setError(t('Cannot create this workload: check permissions and namespace.'));
       return;
     }
 
     try {
       await k8sCreate({
-        model:
-          review.kind === 'Deployment'
-            ? DeploymentModel
-            : PodModel,
+        model: review.kind === 'Deployment' ? DeploymentModel : PodModel,
         data: review.obj,
       });
 
-      void navigate(
-        `/sandboxes/workloads/${review.kind}/${review.namespace}/${review.name}`
-      );
+      void navigate(`/sandboxes/workloads/${review.kind}/${review.namespace}/${review.name}`);
     } catch (e) {
       setError((e as Error)?.message ?? String(e));
     }
@@ -1125,16 +1095,10 @@ const CreateSandboxWorkload: FC = () => {
             footer={{
               nextButtonText: t('Create'),
               isNextDisabled:
-                !review.ok ||
-                !targetNsUsable ||
-                workloadRbacLoading ||
-                !canCreateWorkload,
+                !review.ok || !targetNsUsable || workloadRbacLoading || !canCreateWorkload,
             }}
           >
-            <PermissionHint
-              allowed={canCreateWorkload}
-              loading={workloadRbacLoading}
-            />
+            <PermissionHint allowed={canCreateWorkload} loading={workloadRbacLoading} />
             {error && (
               <Alert variant="danger" title={t('Could not create workload')} isInline>
                 {error}
@@ -1148,15 +1112,21 @@ const CreateSandboxWorkload: FC = () => {
                     <DescriptionList isHorizontal isCompact>
                       <DescriptionListGroup>
                         <DescriptionListTerm>{t('Type')}</DescriptionListTerm>
-                        <DescriptionListDescription>{review.ok ? review.kind : form.kind}</DescriptionListDescription>
+                        <DescriptionListDescription>
+                          {review.ok ? review.kind : form.kind}
+                        </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>
                         <DescriptionListTerm>{t('Name')}</DescriptionListTerm>
-                        <DescriptionListDescription>{review.ok ? review.name : form.name}</DescriptionListDescription>
+                        <DescriptionListDescription>
+                          {review.ok ? review.name : form.name}
+                        </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>
                         <DescriptionListTerm>{t('Namespace')}</DescriptionListTerm>
-                        <DescriptionListDescription>{review.ok ? review.namespace : form.namespace}</DescriptionListDescription>
+                        <DescriptionListDescription>
+                          {review.ok ? review.namespace : form.namespace}
+                        </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>
                         <DescriptionListTerm>{t('Runtime class')}</DescriptionListTerm>

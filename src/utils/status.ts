@@ -118,7 +118,8 @@ const CONDITION_MESSAGES: Record<string, ConditionMessage> = {
   },
   NodesFailing: {
     summary: 'One or more nodes failed to install the kata runtime',
-    remediation: 'Check the failing node logs and events in the openshift-sandboxed-containers-operator namespace.',
+    remediation:
+      'Check the failing node logs and events in the openshift-sandboxed-containers-operator namespace.',
   },
   Installed: {
     summary: 'The kata runtime is installed and ready',

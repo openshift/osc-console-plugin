@@ -35,7 +35,13 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useKataConfig, useRuntimeClasses, useSandboxWorkloads } from '../k8s/hooks';
-import { CAA_DAEMONSET, ClusterServiceVersionGVK, DaemonSetGVK, OSC_NAMESPACE, SubscriptionGVK } from '../k8s/resources';
+import {
+  CAA_DAEMONSET,
+  ClusterServiceVersionGVK,
+  DaemonSetGVK,
+  OSC_NAMESPACE,
+  SubscriptionGVK,
+} from '../k8s/resources';
 import type { CsvKind, DaemonSetKind, SubscriptionKind } from '../k8s/types';
 import { isSandboxRuntimeClass, isolationDescription, isolationForHandler } from '../utils/runtime';
 import { humanizeCondition, kataConfigReadiness, statusCategory } from '../utils/status';
@@ -417,36 +423,87 @@ const SandboxesOverview: FC = () => {
                         </DescriptionListDescription>
                       </DescriptionListGroup>
                     )}
-                    {kata.phase !== 'absent' && (nodes?.installed?.length || nodes?.installing?.length || failedNodes.length > 0) && (
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>{t('Node details')}</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <Stack hasGutter>
-                            {(nodes?.installed ?? []).map((n) => (
-                              <Flex key={n} gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-                                <FlexItem><CheckCircleIcon className="osc-openshift-console-plugin__icon-success" /></FlexItem>
-                                <FlexItem><ResourceLink groupVersionKind={{ version: 'v1', kind: 'Node' }} name={n} linkTo /></FlexItem>
-                                <FlexItem><Label isCompact color="green">{t('Installed')}</Label></FlexItem>
-                              </Flex>
-                            ))}
-                            {(nodes?.installing ?? []).map((n) => (
-                              <Flex key={n} gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-                                <FlexItem><InProgressIcon /></FlexItem>
-                                <FlexItem><ResourceLink groupVersionKind={{ version: 'v1', kind: 'Node' }} name={n} linkTo /></FlexItem>
-                                <FlexItem><Label isCompact color="blue">{t('Installing')}</Label></FlexItem>
-                              </Flex>
-                            ))}
-                            {failedNodes.map((n) => (
-                              <Flex key={n} gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-                                <FlexItem><ExclamationCircleIcon className="osc-openshift-console-plugin__icon-danger" /></FlexItem>
-                                <FlexItem><ResourceLink groupVersionKind={{ version: 'v1', kind: 'Node' }} name={n} linkTo /></FlexItem>
-                                <FlexItem><Label isCompact color="red">{t('Failed')}</Label></FlexItem>
-                              </Flex>
-                            ))}
-                          </Stack>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    )}
+                    {kata.phase !== 'absent' &&
+                      ((nodes?.installed?.length ?? 0) > 0 ||
+                        (nodes?.installing?.length ?? 0) > 0 ||
+                        failedNodes.length > 0) && (
+                        <DescriptionListGroup>
+                          <DescriptionListTerm>{t('Node details')}</DescriptionListTerm>
+                          <DescriptionListDescription>
+                            <Stack hasGutter>
+                              {(nodes?.installed ?? []).map((n) => (
+                                <Flex
+                                  key={n}
+                                  gap={{ default: 'gapSm' }}
+                                  alignItems={{ default: 'alignItemsCenter' }}
+                                >
+                                  <FlexItem>
+                                    <CheckCircleIcon className="osc-openshift-console-plugin__icon-success" />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <ResourceLink
+                                      groupVersionKind={{ version: 'v1', kind: 'Node' }}
+                                      name={n}
+                                      linkTo
+                                    />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Label isCompact color="green">
+                                      {t('Installed')}
+                                    </Label>
+                                  </FlexItem>
+                                </Flex>
+                              ))}
+                              {(nodes?.installing ?? []).map((n) => (
+                                <Flex
+                                  key={n}
+                                  gap={{ default: 'gapSm' }}
+                                  alignItems={{ default: 'alignItemsCenter' }}
+                                >
+                                  <FlexItem>
+                                    <InProgressIcon />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <ResourceLink
+                                      groupVersionKind={{ version: 'v1', kind: 'Node' }}
+                                      name={n}
+                                      linkTo
+                                    />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Label isCompact color="blue">
+                                      {t('Installing')}
+                                    </Label>
+                                  </FlexItem>
+                                </Flex>
+                              ))}
+                              {failedNodes.map((n) => (
+                                <Flex
+                                  key={n}
+                                  gap={{ default: 'gapSm' }}
+                                  alignItems={{ default: 'alignItemsCenter' }}
+                                >
+                                  <FlexItem>
+                                    <ExclamationCircleIcon className="osc-openshift-console-plugin__icon-danger" />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <ResourceLink
+                                      groupVersionKind={{ version: 'v1', kind: 'Node' }}
+                                      name={n}
+                                      linkTo
+                                    />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Label isCompact color="red">
+                                      {t('Failed')}
+                                    </Label>
+                                  </FlexItem>
+                                </Flex>
+                              ))}
+                            </Stack>
+                          </DescriptionListDescription>
+                        </DescriptionListGroup>
+                      )}
                     <DescriptionListGroup>
                       <DescriptionListTerm>{t('Peer pods')}</DescriptionListTerm>
                       <DescriptionListDescription>
@@ -478,7 +535,10 @@ const SandboxesOverview: FC = () => {
                             <Label color="red" icon={<ExclamationCircleIcon />}>
                               {t('{{phase}}: {{reason}}', {
                                 phase: oscCsv.status.phase,
-                                reason: oscCsv.status.reason ?? oscCsv.status.message ?? t('Unknown error'),
+                                reason:
+                                  oscCsv.status.reason ??
+                                  oscCsv.status.message ??
+                                  t('Unknown error'),
                               })}
                             </Label>
                           ) : (
@@ -495,18 +555,30 @@ const SandboxesOverview: FC = () => {
                         <DescriptionListDescription>
                           <Stack hasGutter>
                             {subConditions.map((c) => (
-                              <Flex key={c.type} gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+                              <Flex
+                                key={c.type}
+                                gap={{ default: 'gapSm' }}
+                                alignItems={{ default: 'alignItemsCenter' }}
+                              >
                                 <FlexItem>
                                   <Label
                                     isCompact
                                     color={c.type === 'InstallSucceeded' ? 'green' : 'orange'}
-                                    icon={c.type === 'InstallSucceeded' ? <CheckCircleIcon /> : <ExclamationTriangleIcon />}
+                                    icon={
+                                      c.type === 'InstallSucceeded' ? (
+                                        <CheckCircleIcon />
+                                      ) : (
+                                        <ExclamationTriangleIcon />
+                                      )
+                                    }
                                   >
                                     {c.type}
                                   </Label>
                                 </FlexItem>
                                 {c.message && (
-                                  <FlexItem className="osc-openshift-console-plugin__muted">{c.message}</FlexItem>
+                                  <FlexItem className="osc-openshift-console-plugin__muted">
+                                    {c.message}
+                                  </FlexItem>
                                 )}
                               </Flex>
                             ))}
