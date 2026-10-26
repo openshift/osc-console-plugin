@@ -1,0 +1,11 @@
+{{- if .Values.plugin.nginx.honorClusterTLSProfile }}
+{{- $tls := include "openshift-console-plugin.nginxTLS" . | fromJson }}
+{{- if ne $tls.source "cluster" }}
+WARNING: could not read the cluster TLS security profile from
+apiservers.config.openshift.io/cluster. The plugin is using the "{{ $tls.source }}"
+fallback TLS configuration instead of the cluster policy. This is expected with
+`helm template` / `--dry-run`; on a live cluster it means the chart's service
+account or the caller cannot read the APIServer resource — re-run `helm upgrade`
+with cluster-read access, or set plugin.nginx.tlsProfile explicitly.
+{{- end }}
+{{- end }}

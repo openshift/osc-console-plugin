@@ -15,6 +15,10 @@ spec:
     metadata:
       labels:
             {{- include "openshift-console-plugin.labels" . | nindent 8 }}
+      annotations:
+        # Roll the pods when the rendered nginx config (and therefore the
+        # resolved TLS profile) changes on install/upgrade.
+        checksum/nginx-conf: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
       {{- with .Values.plugin.imagePullSecrets }}
       imagePullSecrets:

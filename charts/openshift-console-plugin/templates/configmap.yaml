@@ -6,7 +6,9 @@ metadata:
   labels:
     {{- include "openshift-console-plugin.labels" . | nindent 4 }}
 data:
+  {{- $tls := include "openshift-console-plugin.nginxTLS" . | fromJson }}
   nginx.conf: |
+    # TLS profile source: {{ $tls.source }}
     error_log /dev/stdout info;
     events {}
     http {
@@ -17,12 +19,25 @@ data:
       server {
         listen              {{ .Values.plugin.port }} ssl;
         listen              [::]:{{ .Values.plugin.port }} ssl;
+        {{- if .Values.plugin.nginx.http2 }}
+        http2               on;
+        {{- end }}
         ssl_certificate     /var/cert/tls.crt;
         ssl_certificate_key /var/cert/tls.key;
-        ssl_protocols       {{ .Values.plugin.nginx.ssl_protocols }};
-        ssl_ciphers         {{ .Values.plugin.nginx.ssl_ciphers }};
+        {{- if $tls.protocols }}
+        ssl_protocols       {{ $tls.protocols }};
+        {{- end }}
+        {{- if $tls.ciphers }}
+        ssl_ciphers         {{ $tls.ciphers }};
+        {{- end }}
+        {{- if $tls.ciphersuites }}
+        ssl_conf_command    Ciphersuites {{ $tls.ciphersuites }};
+        {{- end }}
         ssl_prefer_server_ciphers {{ .Values.plugin.nginx.ssl_prefer_server_ciphers }};
-        ssl_ecdh_curve      {{ .Values.plugin.nginx.ssl_ecdh_curve }};
+        {{- if $tls.groups }}
+        ssl_ecdh_curve      {{ $tls.groups }};
+        {{- end }}
+        server_tokens       off;
         root                /usr/share/nginx/html;
       }
     }

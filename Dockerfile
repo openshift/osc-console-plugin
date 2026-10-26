@@ -1,4 +1,5 @@
-FROM registry.access.redhat.com/ubi9/nodejs-22:latest AS build-main
+# UBI 9 minimal build image — node/npm plus awk/bash/tar is all the yarn build needs.
+FROM registry.access.redhat.com/ubi9/nodejs-22-minimal:latest AS build-main
 USER root
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 WORKDIR /usr/src/app
@@ -12,7 +13,8 @@ COPY src ./src
 RUN LOCAL_YARN="node $(awk '/yarnPath:/{print $2}' .yarnrc.yml)" && \
     $LOCAL_YARN build
 
-FROM registry.access.redhat.com/ubi10/nginx-126:latest
+# RHEL 9 nginx with OpenSSL 3.5 (ML-KEM), so the chart's PQC ssl_ecdh_curve defaults work.
+FROM registry.access.redhat.com/ubi9/nginx-126:latest
 COPY --from=build-main /usr/src/app/dist /builds/main
 COPY entrypoint.sh /entrypoint.sh
 
