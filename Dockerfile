@@ -33,4 +33,17 @@ RUN chmod +x /entrypoint.sh && \
     chgrp -R 0 /tmp/nginx /builds && \
     chmod -R g=u /tmp/nginx /builds
 USER 1001
+
+# Red Hat labels
+LABEL name="openshift-sandboxed-containers/osc-console-plugin-rhel9" \
+cpe="cpe:/a:redhat:confidential_compute_attestation:1.130::el9" \
+version="1.14" \
+com.redhat.component="osc-console-plugin" \
+summary="Console plugin for Openshift Sandboxed Containers" \
+maintainer="support@redhat.com" \
+description="Console plugin for Openshift Sandboxed Containers" \
+io.k8s.display-name="openshift-sandboxed-containers-osc-console-plugin" \
+io.k8s.description="Console plugin for Openshift Sandboxed Containers" \
+io.openshift.tags=""
+
 ENTRYPOINT ["/entrypoint.sh"]
