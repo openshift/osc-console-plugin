@@ -36,7 +36,7 @@ USER 1001
 
 # Red Hat labels
 LABEL name="openshift-sandboxed-containers/osc-console-plugin-rhel9" \
-cpe="cpe:/a:redhat:confidential_compute_attestation:1.130::el9" \
+cpe="cpe:/a:redhat:confidential_compute_attestation:1.140::el9" \
 version="1.14" \
 com.redhat.component="osc-console-plugin" \
 summary="Console plugin for Openshift Sandboxed Containers" \
