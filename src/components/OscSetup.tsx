@@ -386,8 +386,8 @@ const OscSetup: FC = () => {
 
   return (
     <>
-      <DocumentTitle>{t('Sandboxes setup')}</DocumentTitle>
-      <ListPageHeader title={t('Sandboxes setup')} />
+      <DocumentTitle>{t('Kata Sandboxes setup')}</DocumentTitle>
+      <ListPageHeader title={t('Kata Sandboxes setup')} />
       <PageSection>
         <Card>
           <CardTitle>

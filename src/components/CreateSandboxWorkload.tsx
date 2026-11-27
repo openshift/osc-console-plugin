@@ -618,7 +618,7 @@ const CreateSandboxWorkload: FC = () => {
               <EmptyState headingLevel="h4" titleText={t('No sandbox runtime classes available')}>
                 <EmptyStateBody>
                   {t(
-                    'No kata runtime classes were found. Check that the KataConfig has finished installing on the Sandboxes overview page.',
+                    'No kata runtime classes were found. Check that the KataConfig has finished installing on the Kata Sandboxes overview page.',
                   )}
                 </EmptyStateBody>
               </EmptyState>

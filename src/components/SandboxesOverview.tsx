@@ -225,8 +225,8 @@ const SandboxesOverview: FC = () => {
 
   return (
     <>
-      <DocumentTitle>{t('Sandboxes')}</DocumentTitle>
-      <ListPageHeader title={t('Sandboxes overview')}>
+      <DocumentTitle>{t('Kata Sandboxes')}</DocumentTitle>
+      <ListPageHeader title={t('Kata Sandboxes overview')}>
         <Link to="/sandboxes/workloads/~new">
           <Button variant="primary">{t('Create sandboxed workload')}</Button>
         </Link>
