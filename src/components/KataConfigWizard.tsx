@@ -422,7 +422,7 @@ const KataConfigWizard: FC = () => {
             className="osc-openshift-console-plugin__mb"
           >
             {t(
-              'DaemonSet mode installs the Kata runtime without draining or rebooting nodes — the right mode for hosted (HyperShift/HCP) clusters that have no MachineConfig Operator. Track progress on the Sandboxes overview.',
+              'DaemonSet mode installs the Kata runtime without draining or rebooting nodes — the right mode for hosted (HyperShift/HCP) clusters that have no MachineConfig Operator. Track progress on the Kata Sandboxes overview.',
             )}
           </Alert>
         ) : willReboot === true ? (
@@ -433,7 +433,7 @@ const KataConfigWizard: FC = () => {
             className="osc-openshift-console-plugin__mb"
           >
             {t(
-              'MachineConfig mode drains and reboots each eligible node — this can take from 10 to 60+ minutes. Track progress on the Sandboxes overview.',
+              'MachineConfig mode drains and reboots each eligible node — this can take from 10 to 60+ minutes. Track progress on the Kata Sandboxes overview.',
             )}
           </Alert>
         ) : (

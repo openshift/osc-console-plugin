@@ -213,7 +213,7 @@ const SandboxWorkloadDetail: FC = () => {
       <PageSection className="osc-openshift-console-plugin__breadcrumb-section">
         <Breadcrumb>
           <BreadcrumbItem>
-            <Link to="/sandboxes">{t('Sandboxes')}</Link>
+            <Link to="/sandboxes">{t('Kata Sandboxes')}</Link>
           </BreadcrumbItem>
           <BreadcrumbItem>
             <Link to="/sandboxes/workloads">{t('Workloads')}</Link>

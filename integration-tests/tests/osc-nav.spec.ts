@@ -7,7 +7,7 @@ import {
 } from './helpers.js';
 
 test.describe('OSC nav section visibility', () => {
-  test('Sandboxes section is present in admin nav', async ({
+  test('Kata Sandboxes section is present in admin nav', async ({
     page,
     baseURL,
   }) => {
@@ -16,7 +16,7 @@ test.describe('OSC nav section visibility', () => {
 
     const nav = page.locator('nav');
     const navText = await nav.innerText();
-    expect(navText).toContain('Sandboxes');
+    expect(navText).toContain('Kata Sandboxes');
   });
 
   const navItems = [
@@ -34,7 +34,7 @@ test.describe('OSC nav section visibility', () => {
       await page.goto(`${baseURL}/sandboxes`, { waitUntil: 'domcontentloaded', timeout: 120_000 });
       await waitForConsoleReady(page);
 
-      await expandNavSection(page, 'Sandboxes');
+      await expandNavSection(page, 'Kata Sandboxes');
 
       const link = page.locator(`nav a[href="${item.href}"]`).first();
       await expect(link).toBeVisible({ timeout: 15_000 });

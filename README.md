@@ -8,7 +8,7 @@
 > provided **as-is** under the Apache-2.0 license. Validate in a
 > non-production environment before use, at your own risk.
 
-An OpenShift Console **dynamic plugin** that adds a **Sandboxes** menu for managing and observing
+An OpenShift Console **dynamic plugin** that adds a **Kata Sandboxes** menu for managing and observing
 [OpenShift sandboxed containers](https://github.com/openshift/sandboxed-containers-operator)
 workloads — both on-node Kata microVMs (`kata`) and peer pods (`kata-remote`):
 
@@ -49,7 +49,7 @@ emits the federation protocol the 4.22 console expects (4.21 consoles use a diff
 ## Packaging
 
 In production this plugin is **shipped by the OpenShift sandboxed containers (OSC) operator** —
-there is no separate "install the plugin" step; the **Sandboxes** menu appears once the operator
+there is no separate "install the plugin" step; the **Kata Sandboxes** menu appears once the operator
 registers the ConsolePlugin and the `KataConfig` CRD exists. Across the sandboxing/confidential
 stack there are **two operators total**: the OSC operator ships this plugin *and* the Confidential
 Containers plugin (one feature-gated operator — there is no separate CoCo operator), while a

@@ -29,7 +29,7 @@
     "properties": {
       "id": "sandboxes",
       "perspective": "admin",
-      "name": "%plugin__osc-openshift-console-plugin~Sandboxes%",
+      "name": "%plugin__osc-openshift-console-plugin~Kata Sandboxes%",
       "insertAfter": "workloads"
     },
     "flags": { "required": ["OSC_KATACONFIG"] }
